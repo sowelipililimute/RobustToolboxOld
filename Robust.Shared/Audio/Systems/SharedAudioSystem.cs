@@ -37,7 +37,7 @@ public abstract partial class SharedAudioSystem : EntitySystem
     [Dependency] protected readonly MetaDataSystem MetadataSys = default!;
     [Dependency] protected readonly SharedTransformSystem XformSystem = default!;
 
-    private const float AudioDespawnBuffer = 1f;
+    public const float AudioDespawnBuffer = 1f;
 
     /// <summary>
     /// Default max range at which the sound can be heard.
@@ -344,6 +344,15 @@ public abstract partial class SharedAudioSystem : EntitySystem
         comp.FileName = fileName ?? string.Empty;
         comp.Params = audioParams.Value;
         comp.AudioStart = Timing.CurTime;
+        if (specifier is ResolvedCollectionSpecifier collection && collection.Collection is {} collectionID)
+        {
+            var caption = ProtoMan.Index(collectionID).Caption;
+            if (caption is not null)
+            {
+                var capt = AddComp<CaptionComponent>(uid);
+                capt.Caption = caption;
+            }
+        }
 
         if (!audioParams.Value.Loop)
         {
@@ -411,6 +420,13 @@ public abstract partial class SharedAudioSystem : EntitySystem
 
         if (component.Params.Volume.Equals(value))
             return;
+
+        // Not a log error for now because if something has a negative infinity volume (i.e. 0 gain) then subtracting from it can
+        // easily cause this and making callers deal with it everywhere is quite annoying.
+        if (float.IsNaN(value))
+        {
+            value = float.NegativeInfinity;
+        }
 
         component.Params.Volume = value;
         component.Volume = value;
